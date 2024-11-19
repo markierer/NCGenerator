@@ -1,95 +1,117 @@
-﻿module Shape = 
+﻿type Point = { X: float; Z: float }
+let degrees radiant = radiant * 180.0 / System.Math.PI
 
-    type Point = { X: float; Z: float }
-    let degrees radiant = radiant * 180.0 / System.Math.PI
+module Shape = 
 
-    // Start point
-    let startPoint = 
+    let point1 = 
         { X = 30.0 
           Z = 0.0 }
 
-    // Left point
-    let leftPoint = 
-        { X = 50.0 
+    let point2 = 
+        { X = 40.0 
           Z = 10.0 }
 
-    // Angle alpha
-    let alpha = atan2 (leftPoint.X - startPoint.X) (leftPoint.Z - startPoint.Z)
+    let alpha = atan2 (point2.X - point1.X) (point2.Z - point1.Z)
     let alphaDegrees = degrees alpha
 
-    // Right point
-    let rightPoint = 
-        { X = 60.0 
+    let point3 = 
+        { X = 50.0 
           Z = 60.0 }
 
-    let beta = atan2 (rightPoint.X - leftPoint.X) (rightPoint.Z - leftPoint.Z)
+    let beta = atan2 (point3.X - point2.X) (point3.Z - point2.Z)
     let betaDegrees = degrees beta
 
-    // End point
-    let endPoint = 
-        { X = 30.0 
+    let point4 = 
+        { X = 20.0 
           Z = 70.0 }
 
-    let gamma = atan2 (endPoint.X - rightPoint.X) (endPoint.Z - rightPoint.Z)
+    let gamma = atan2 (point4.X - point3.X) (point4.Z - point3.Z)
     let gammaDegrees = degrees gamma
 
 
 module Trajectory = 
 
-    type Point = { X: float; Z: float }
-    
     // Cutter diameter
     let cutterDiameter = 20.0
     let cutterRadius = cutterDiameter / 2.0
 
-    // Normal point
-    let normalPoint = 
-        { X = Shape.startPoint.X + cutterRadius * cos Shape.alpha 
-          Z = Shape.startPoint.Z - cutterRadius * sin Shape.alpha }
+    let intersection (point1: Point) (point2: Point) (point3: Point) (point4: Point) : Point =
+        let div1 = point2.Z - point1.Z
+        let m1 = (point2.X - point1.X) / div1
+        let b1 = point1.X - m1 * point1.Z
+        let div2 = point4.Z - point3.Z
+        let m2 = (point4.X - point3.X) / div2
+        let b2 = point3.X - m2 * point3.Z
+        let div = m1 - m2
+        let z = (b2 - b1) / div
+        let x = m1 * z + b1
+        if System.Double.IsNaN(x) then point2
+        elif System.Double.IsNaN(z) then point2
+        else
+            let retVal = 
+                { X = x
+                  Z = z }
+            retVal
 
-    // Normal plunge in point
+    // Start point
+    let startPoint = 
+        { X = Shape.point1.X + cutterRadius * cos Shape.alpha 
+          Z = Shape.point1.Z - cutterRadius * sin Shape.alpha }
+
+    // Example plunge in point for normal start
     let plungeInX = 8.94
-    let normalPlungeInPoint = 
-        { X = normalPoint.X + plungeInX 
-          Z = normalPoint.Z - plungeInX * tan Shape.alpha }
+    let plungeInPoint = 
+        { X = startPoint.X + plungeInX * cos Shape.alpha
+          Z = startPoint.Z - plungeInX * sin Shape.alpha }
 
-    // Tangential point
-    let tangentialPoint = 
-        { X = normalPoint.X - (cutterRadius - cutterRadius * sin Shape.alpha) * tan Shape.alpha
-          Z = normalPoint.Z - (cutterRadius - cutterRadius * sin Shape.alpha) }
+    // Tangential start point
+    // Where the cutter's 3 o'clock would touch the part
+    let tangentialStartPoint = 
+        { X = startPoint.X - (cutterRadius - cutterRadius * sin Shape.alpha) * tan Shape.alpha
+          Z = startPoint.Z - (cutterRadius - cutterRadius * sin Shape.alpha) }
 
-    // Tangential point with infeed Z
-    let infeedZ = 5.0
-    let tangentialInfeedPoint = 
-        { X = tangentialPoint.X - infeedZ * tan Shape.alpha
-          Z = tangentialPoint.Z - infeedZ }
+    // Example infeed point for tangential start
+    let infeedZ = 8.94
+    let infeedPoint = 
+        { X = tangentialStartPoint.X - infeedZ * sin Shape.alpha
+          Z = tangentialStartPoint.Z - infeedZ * cos Shape.alpha }
 
-    // Entry end point
-    let entryEndPoint = 
-        { X = 
-            if (Shape.beta <= 0) then normalPoint.X + (Shape.leftPoint.X - Shape.startPoint.X) + (cutterRadius - cutterRadius * cos Shape.alpha)
-            else                      normalPoint.X + (Shape.leftPoint.X - Shape.startPoint.X) + ((cutterRadius - cutterRadius * cos Shape.alpha) - (cutterRadius - cutterRadius * cos Shape.beta))
-          Z = 
-            if (Shape.beta <= 0) then normalPoint.Z + (Shape.leftPoint.Z - Shape.startPoint.Z) + (cutterRadius - cutterRadius * cos Shape.alpha) / tan Shape.alpha 
-            else                      normalPoint.Z + (Shape.leftPoint.Z - Shape.startPoint.Z) + ((cutterRadius - cutterRadius * cos Shape.alpha) - (cutterRadius - cutterRadius * cos Shape.beta)) / tan Shape.alpha }
+    // End point after first segment
+    let segmentEndPoint1 = 
+        { X = Shape.point2.X + cutterRadius * cos Shape.alpha 
+          Z = Shape.point2.Z - cutterRadius * sin Shape.alpha }
 
     // Gear start point
-    let gearStartPoint = 
-        { X = Shape.startPoint.X + (Shape.leftPoint.X - Shape.startPoint.X) + cutterRadius * cos Shape.beta 
-          Z = Shape.startPoint.Z + (Shape.leftPoint.Z - Shape.startPoint.Z) - cutterRadius * sin Shape.beta }
+    let startPointGear = 
+        { X = Shape.point2.X + cutterRadius * cos Shape.beta 
+          Z = Shape.point2.Z - cutterRadius * sin Shape.beta }
 
     // Gear end point
-    let gearEndPoint = 
-        { X = 
-            if (Shape.gamma <= 0) then gearStartPoint.X + (Shape.rightPoint.X - Shape.leftPoint.X) + (cutterRadius - cutterRadius * cos Shape.beta)
-            else                       gearStartPoint.X + (Shape.rightPoint.X - Shape.leftPoint.X) + ((cutterRadius - cutterRadius * cos Shape.beta) - (cutterRadius - cutterRadius * cos Shape.gamma))
-          Z = 
-            if (Shape.gamma <= 0) then 
-                if (Shape.beta <> 0) then gearStartPoint.Z + (Shape.rightPoint.Z - Shape.leftPoint.Z) + (cutterRadius - cutterRadius * cos Shape.beta) / tan Shape.beta 
-                else                     gearStartPoint.Z + (Shape.rightPoint.Z - Shape.leftPoint.Z)
-            else                       
-                if (Shape.beta <> 0) then gearStartPoint.Z + (Shape.rightPoint.Z - Shape.leftPoint.Z) + ((cutterRadius - cutterRadius * cos Shape.beta) - (cutterRadius - cutterRadius * cos Shape.gamma)) / tan Shape.beta 
-                else                     gearStartPoint.Z + (Shape.rightPoint.Z - Shape.leftPoint.Z) }
+    let endPointGear = 
+        { X = Shape.point3.X + cutterRadius * cos Shape.beta 
+          Z = Shape.point3.Z - cutterRadius * sin Shape.beta }
+
+    // Start point before third segment
+    let segmentStartPoint3 = 
+        { X = Shape.point3.X + cutterRadius * cos Shape.gamma 
+          Z = Shape.point3.Z - cutterRadius * sin Shape.gamma }
+
+    // End point after gear segment
+    let endPoint = 
+        { X = Shape.point4.X + cutterRadius * cos Shape.gamma 
+          Z = Shape.point4.Z - cutterRadius * sin Shape.gamma }
+
+    // Example plunge in point for normal start
+    let plungeOutX = 8.94
+    let plungeOutPoint = 
+        { X = endPoint.X + plungeOutX * cos Shape.gamma
+          Z = endPoint.Z - plungeOutX * sin Shape.gamma }
+
+    // Transition point between first segment and gear segment
+    let transitionPoint1 = intersection startPoint segmentEndPoint1 startPointGear endPointGear
+
+    // Transition point between gear segment and third segment
+    let transitionPoint2 = intersection startPointGear endPointGear segmentStartPoint3 endPoint
 
 
 module Draw = 
@@ -115,40 +137,59 @@ module Draw =
             let path = new GraphicsPath()
             let shapePoints = 
                 [|
-                PointF(float32 Shape.startPoint.X, float32 Shape.startPoint.Z)
-                PointF(float32 Shape.leftPoint.X, float32 Shape.leftPoint.Z)
-                PointF(float32 Shape.rightPoint.X, float32 Shape.rightPoint.Z)
-                PointF(float32 Shape.endPoint.X, float32 Shape.endPoint.Z)
+                PointF(float32 Shape.point1.X, float32 Shape.point1.Z)
+                PointF(float32 Shape.point2.X, float32 Shape.point2.Z)
+                PointF(float32 Shape.point3.X, float32 Shape.point3.Z)
+                PointF(float32 Shape.point4.X, float32 Shape.point4.Z)
                 |]            
             path.AddLines(shapePoints)    
             path.Transform(matrix)
             g.DrawPath(new Pen(brush = Brushes.Black, width = 1.0f), path)
 
-            // draw cutter for normal start
+            // draw cutter at normal start
             path.Reset()
-            path.AddEllipse(float32 (Trajectory.normalPoint.X - Trajectory.cutterRadius), float32 (Trajectory.normalPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddEllipse(float32 (Trajectory.normalPlungeInPoint.X - Trajectory.cutterRadius), float32 (Trajectory.normalPlungeInPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddLine(float32 Trajectory.normalPoint.X, float32 Trajectory.normalPoint.Z, float32 Trajectory.normalPlungeInPoint.X, float32 Trajectory.normalPlungeInPoint.Z)
+            path.AddEllipse(float32 (Trajectory.startPoint.X - Trajectory.cutterRadius), float32 (Trajectory.startPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.plungeInPoint.X - Trajectory.cutterRadius), float32 (Trajectory.plungeInPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddLine(float32 Trajectory.startPoint.X, float32 Trajectory.startPoint.Z, float32 Trajectory.plungeInPoint.X, float32 Trajectory.plungeInPoint.Z)
             path.Transform(matrix)
             g.DrawPath(new Pen(brush = Brushes.Red, width = 1.0f), path)
 
-            // draw cutter for tangential start
+            // draw cutter at tangential start
             path.Reset()
-            path.AddEllipse(float32 (Trajectory.tangentialPoint.X - Trajectory.cutterRadius), float32 (Trajectory.tangentialPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddEllipse(float32 (Trajectory.tangentialInfeedPoint.X - Trajectory.cutterRadius), float32 (Trajectory.tangentialInfeedPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddLine(float32 Trajectory.tangentialPoint.X, float32 Trajectory.tangentialPoint.Z, float32 Trajectory.tangentialInfeedPoint.X, float32 Trajectory.tangentialInfeedPoint.Z)
+            path.AddEllipse(float32 (Trajectory.tangentialStartPoint.X - Trajectory.cutterRadius), float32 (Trajectory.tangentialStartPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.infeedPoint.X - Trajectory.cutterRadius), float32 (Trajectory.infeedPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddLine(float32 Trajectory.tangentialStartPoint.X, float32 Trajectory.tangentialStartPoint.Z, float32 Trajectory.infeedPoint.X, float32 Trajectory.infeedPoint.Z)
             path.Transform(matrix)
             g.DrawPath(new Pen(brush = Brushes.Blue, width = 1.0f), path)
 
-            // draw cutter at entry end point
+            // draw cutter at gear start
             path.Reset()
-            path.AddEllipse(float32 (Trajectory.entryEndPoint.X - Trajectory.cutterRadius), float32 (Trajectory.entryEndPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddEllipse(float32 (Trajectory.gearStartPoint.X - Trajectory.cutterRadius), float32 (Trajectory.gearStartPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddEllipse(float32 (Trajectory.gearEndPoint.X - Trajectory.cutterRadius), float32 (Trajectory.gearEndPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
-            path.AddLine(float32 Trajectory.normalPoint.X, float32 Trajectory.normalPoint.Z, float32 Trajectory.entryEndPoint.X, float32 Trajectory.entryEndPoint.Z)
-            path.AddLine(float32 Trajectory.entryEndPoint.X, float32 Trajectory.entryEndPoint.Z, float32 Trajectory.gearStartPoint.X, float32 Trajectory.gearStartPoint.Z)
+            path.AddEllipse(float32 (Trajectory.segmentEndPoint1.X - Trajectory.cutterRadius), float32 (Trajectory.segmentEndPoint1.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.transitionPoint1.X - Trajectory.cutterRadius), float32 (Trajectory.transitionPoint1.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.startPointGear.X - Trajectory.cutterRadius), float32 (Trajectory.startPointGear.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddLine(float32 Trajectory.startPoint.X, float32 Trajectory.startPoint.Z, float32 Trajectory.transitionPoint1.X, float32 Trajectory.transitionPoint1.Z)
+            path.AddLine(float32 Trajectory.transitionPoint1.X, float32 Trajectory.transitionPoint1.Z, float32 Trajectory.startPointGear.X, float32 Trajectory.startPointGear.Z)
             path.Transform(matrix)
             g.DrawPath(new Pen(brush = Brushes.Green, width = 1.0f), path)
+
+            // draw cutter at gear end
+            path.Reset()
+            path.AddEllipse(float32 (Trajectory.endPointGear.X - Trajectory.cutterRadius), float32 (Trajectory.endPointGear.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.transitionPoint2.X - Trajectory.cutterRadius), float32 (Trajectory.transitionPoint2.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.segmentStartPoint3.X - Trajectory.cutterRadius), float32 (Trajectory.segmentStartPoint3.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddLine(float32 Trajectory.startPointGear.X, float32 Trajectory.startPointGear.Z, float32 Trajectory.endPointGear.X, float32 Trajectory.endPointGear.Z)
+            path.AddLine(float32 Trajectory.transitionPoint2.X, float32 Trajectory.transitionPoint2.Z, float32 Trajectory.segmentStartPoint3.X, float32 Trajectory.segmentStartPoint3.Z)
+            path.Transform(matrix)
+            g.DrawPath(new Pen(brush = Brushes.Violet, width = 1.0f), path)
+
+            // draw cutter at end
+            path.Reset()
+            path.AddEllipse(float32 (Trajectory.endPoint.X - Trajectory.cutterRadius), float32 (Trajectory.endPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddEllipse(float32 (Trajectory.plungeOutPoint.X - Trajectory.cutterRadius), float32 (Trajectory.plungeOutPoint.Z - Trajectory.cutterRadius), float32 Trajectory.cutterDiameter, float32 Trajectory.cutterDiameter)
+            path.AddLine(float32 Trajectory.segmentStartPoint3.X, float32 Trajectory.segmentStartPoint3.Z, float32 Trajectory.endPoint.X, float32 Trajectory.endPoint.Z)
+            path.AddLine(float32 Trajectory.endPoint.X, float32 Trajectory.endPoint.Z, float32 Trajectory.plungeOutPoint.X, float32 Trajectory.plungeOutPoint.Z)
+            path.Transform(matrix)
+            g.DrawPath(new Pen(brush = Brushes.Orange, width = 1.0f), path)
 
         override c.OnResize(e:EventArgs) =
             c.Refresh()
